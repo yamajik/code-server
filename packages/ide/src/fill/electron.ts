@@ -118,7 +118,7 @@ const newCreateElement = <K extends keyof HTMLElementTagNameMap>(tagName: K): HT
 						view.contentDocument.body.id = frameID;
 						view.contentDocument.body.parentElement!.style.overflow = "hidden";
 						const script = createElement("script");
-						script.src = location.pathname.replace(/\/$/,'') + url;
+						script.src = location.pathname.replace(/\/$/,'') + new URL(url).pathname;
 						script.addEventListener("load", () => {
 							view.contentDocument!.dispatchEvent(new Event("DOMContentLoaded", {
 								bubbles: true,

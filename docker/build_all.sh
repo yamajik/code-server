@@ -1,7 +1,7 @@
 #!/bin/bash
 
-set -xe
+set -e
 
 VERSION=0.1.0
 
-bash docker/build.sh ${VERSION} $@
+. docker/build.sh ${VERSION} $@
