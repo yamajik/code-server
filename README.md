@@ -9,7 +9,7 @@
 
 Try it out:
 ```bash
-docker run -t -p 127.0.0.1:8443:8443 -v "${PWD}:/root/project" codercom/code-server code-server --allow-http --no-auth
+docker run -it -p 127.0.0.1:8443:8443 -v "${PWD}:/home/coder/project" codercom/code-server:1.621 --allow-http --no-auth
 ```
 
 - Code on your Chromebook, tablet, and laptop with a consistent dev environment.
@@ -22,10 +22,6 @@ docker run -t -p 127.0.0.1:8443:8443 -v "${PWD}:/root/project" codercom/code-ser
 ![Screenshot](/doc/assets/ide.png)
 
 ## Getting Started
-
-### Hosted
-
-[Try `code-server` now](https://coder.com/signup) for free at coder.com.
 
 ### Docker
 
@@ -63,9 +59,9 @@ How to [secure your setup](/doc/security/ssl.md).
 - Electron and Chrome OS applications to bridge the gap between local<->remote.
 - Run VS Code unit tests against our builds to ensure features work as expected.
 
-### Notes
+### Extensions
 
-- At the moment we can't use the official VSCode Marketplace. We've created a custom extension marketplace focused around open-sourced extensions. However, if you have access to the `.vsix` file, you can manually install the extension.
+At the moment we can't use the official VSCode Marketplace. We've created a custom extension marketplace focused around open-sourced extensions. However, if you have access to the `.vsix` file, you can manually install the extension.
 
 ## Contributing
 
