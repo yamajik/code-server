@@ -98,6 +98,14 @@ index f68ae90..d6b9ea7 100644
 @@ -24 +24 @@ import { disposableTimeout } from 'vs/base/common/async';
 -import { isMacintosh } from 'vs/base/common/platform';
 +import { isMacintosh } from 'vs/base/browser/browser';
+diff --git a/src/vs/base/node/config.ts b/src/vs/base/node/config.ts
+index 5ef2193..a232b6c 100644
+--- a/src/vs/base/node/config.ts
++++ b/src/vs/base/node/config.ts
+@@ -79,0 +80,3 @@ export class ConfigWatcher<T> implements IConfigWatcher<T>, IDisposable {
++			} else {
++				this.cache = config; // update config
++				this._onDidUpdateConfiguration.fire({ config });
 diff --git a/src/vs/base/parts/quickopen/browser/quickOpenWidget.ts b/src/vs/base/parts/quickopen/browser/quickOpenWidget.ts
 index 74148e4..041205b 100644
 --- a/src/vs/base/parts/quickopen/browser/quickOpenWidget.ts
@@ -138,20 +146,36 @@ index e0ff793..885de12 100644
 -		const cmdOrCtrlKey = platform.isMacintosh ? e.metaKey : e.ctrlKey;
 +		const cmdOrCtrlKey = browser.isMacintosh ? e.metaKey : e.ctrlKey;
 diff --git a/src/vs/code/electron-browser/sharedProcess/sharedProcessMain.ts b/src/vs/code/electron-browser/sharedProcess/sharedProcessMain.ts
-index 6fd8249..039d31a 100644
+index 6fd8249..04c0933 100644
 --- a/src/vs/code/electron-browser/sharedProcess/sharedProcessMain.ts
 +++ b/src/vs/code/electron-browser/sharedProcess/sharedProcessMain.ts
-@@ -50,0 +51 @@ import { ServiceIdentifier } from 'vs/platform/instantiation/common/instantiatio
+@@ -50,0 +51,2 @@ import { ServiceIdentifier } from 'vs/platform/instantiation/common/instantiatio
 +import { BackupMainService } from 'vs/platform/backup/electron-main/backupMainService';
-@@ -120,0 +122,3 @@ function main(server: Server, initData: ISharedProcessInitData, configuration: I
++import { mkdirp } from 'vs/base/node/pfs';
+@@ -93,0 +96,8 @@ function main(server: Server, initData: ISharedProcessInitData, configuration: I
++	Promise.all<boolean | undefined>([ // Copied from src/vs/code/electron-main/main.ts
++		environmentService.extensionsPath,
++		environmentService.nodeCachedDataDir,
++		environmentService.logsPath,
++		environmentService.globalStorageHome,
++		environmentService.workspaceStorageHome,
++		environmentService.backupHome
++	].map((path): undefined | Promise<boolean> => path ? mkdirp(path) : undefined));
+@@ -119,0 +130,2 @@ function main(server: Server, initData: ISharedProcessInitData, configuration: I
 +	const backupMainService = instantiationService.createInstance(BackupMainService) as BackupMainService;
 +	backupMainService.initialize().catch(console.error);
-+
-@@ -223,0 +228,2 @@ async function handshake(configuration: ISharedProcessConfiguration): Promise<vo
-+
+@@ -223,0 +236 @@ async function handshake(configuration: ISharedProcessConfiguration): Promise<vo
 +startup({ machineId: "1" });
+diff --git a/src/vs/code/node/cli.ts b/src/vs/code/node/cli.ts
+index 1f8b17a..2a875f9 100644
+--- a/src/vs/code/node/cli.ts
++++ b/src/vs/code/node/cli.ts
+@@ -43,0 +44,3 @@ export async function main(argv: string[]): Promise<any> {
++	const cli = await new Promise<IMainCli>((c, e) => require(['vs/code/node/cliProcessMain'], c, e));
++	await cli.main(args);
++	return; // Always just do this for now.
 diff --git a/src/vs/editor/browser/config/configuration.ts b/src/vs/editor/browser/config/configuration.ts
-index f97a692..0206957 100644
+index f97a692..8059a67 100644
 --- a/src/vs/editor/browser/config/configuration.ts
 +++ b/src/vs/editor/browser/config/configuration.ts
 @@ -10 +9,0 @@ import { Disposable } from 'vs/base/common/lifecycle';
@@ -163,9 +187,6 @@ index f97a692..0206957 100644
 @@ -367 +366 @@ export class Configuration extends CommonEditorConfiguration {
 -		if (platform.isMacintosh) {
 +		if (browser.isMacintosh) {
-@@ -378 +377 @@ export class Configuration extends CommonEditorConfiguration {
--			emptySelectionClipboard: browser.isWebKit || browser.isFirefox,
-+			emptySelectionClipboard: false, // browser.isWebKit || browser.isFirefox,
 diff --git a/src/vs/editor/browser/controller/mouseHandler.ts b/src/vs/editor/browser/controller/mouseHandler.ts
 index b3b4472..f888d63 100644
 --- a/src/vs/editor/browser/controller/mouseHandler.ts
@@ -226,32 +247,57 @@ index c69ea3f..b8d87f7 100644
 -const GOLDEN_LINE_HEIGHT_RATIO = platform.isMacintosh ? 1.5 : 1.35;
 +const GOLDEN_LINE_HEIGHT_RATIO = browser.isMacintosh ? 1.5 : 1.35;
 diff --git a/src/vs/editor/contrib/clipboard/clipboard.ts b/src/vs/editor/contrib/clipboard/clipboard.ts
-index 990be3a..8a326c6 100644
+index 990be3a..4bec789 100644
 --- a/src/vs/editor/contrib/clipboard/clipboard.ts
 +++ b/src/vs/editor/contrib/clipboard/clipboard.ts
-@@ -29 +29,2 @@ const supportsCopyWithSyntaxHighlighting = (supportsCopy && !browser.isEdgeOrIE)
+@@ -18,0 +19 @@ import { KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegis
++import { clipboard } from 'electron';
+@@ -29 +30,2 @@ const supportsCopyWithSyntaxHighlighting = (supportsCopy && !browser.isEdgeOrIE)
 -const supportsPaste = (platform.isNative || (!browser.isChrome && document.queryCommandSupported('paste')));
 +// const supportsPaste = (platform.isNative || (!browser.isChrome && document.queryCommandSupported('paste')));
 +const supportsPaste = true;
-@@ -176,0 +178 @@ class ExecCommandPasteAction extends ExecCommandAction {
+@@ -54,0 +57 @@ abstract class ExecCommandAction extends EditorAction {
++		console.log(document.activeElement!.cloneNode(true));
+@@ -71 +74 @@ class ExecCommandCutAction extends ExecCommandAction {
+-			kbOpts = null;
++			// kbOpts = null;
+@@ -119 +122 @@ class ExecCommandCopyAction extends ExecCommandAction {
+-			kbOpts = null;
++			// kbOpts = null;
+@@ -174 +177 @@ class ExecCommandPasteAction extends ExecCommandAction {
+-			kbOpts = null;
++			// kbOpts = null;
+@@ -176,0 +180 @@ class ExecCommandPasteAction extends ExecCommandAction {
 +		const { workbench } = require('vs/../../../../packages/vscode/src/workbench') as typeof import ('vs/../../../../packages/vscode/src/workbench');
-@@ -181 +183 @@ class ExecCommandPasteAction extends ExecCommandAction {
+@@ -181 +185 @@ class ExecCommandPasteAction extends ExecCommandAction {
 -			precondition: EditorContextKeys.writable,
 +			precondition: (require('vs/platform/contextkey/common/contextkey') as typeof import('vs/platform/contextkey/common/contextkey')).ContextKeyExpr.and(EditorContextKeys.writable, workbench.clipboardContextKey),
-@@ -191 +193,2 @@ class ExecCommandPasteAction extends ExecCommandAction {
+@@ -191 +195,2 @@ class ExecCommandPasteAction extends ExecCommandAction {
 -				order: 3
 +				order: 3,
 +				when: workbench.clipboardContextKey,
-@@ -194,0 +198,14 @@ class ExecCommandPasteAction extends ExecCommandAction {
+@@ -194,0 +200,26 @@ class ExecCommandPasteAction extends ExecCommandAction {
 +
 +	public async run(accessor, editor: ICodeEditor): Promise<void> {
 +		if (editor instanceof (require('vs/editor/browser/widget/codeEditorWidget') as typeof import('vs/editor/browser/widget/codeEditorWidget')).CodeEditorWidget) {
 +			try {
-+				editor.trigger('', (require('vs/editor/common/editorCommon') as typeof import ('vs/editor/common/editorCommon')).Handler.Paste, {
-+					text: await (require('vs/../../../../packages/vscode/src/workbench') as typeof import ('vs/../../../../packages/vscode/src/workbench')).workbench.clipboardText,
++				editor.focus();
++				const textInput = document.activeElement! as HTMLTextAreaElement;
++				const dataTransfer = new DataTransfer();
++				const value = await clipboard.readText();
++				dataTransfer.setData("text/plain", value);
++				const pasteEvent = new ClipboardEvent("paste", {
++					clipboardData: dataTransfer,
 +				});
++				textInput.dispatchEvent(pasteEvent);
 +			} catch (ex) {
-+				super.run(accessor, editor);
++				try {
++					editor.trigger('', (require('vs/editor/common/editorCommon') as typeof import ('vs/editor/common/editorCommon')).Handler.Paste, {
++						text: await (require('vs/../../../../packages/vscode/src/workbench') as typeof import ('vs/../../../../packages/vscode/src/workbench')).workbench.clipboardText,
++					});
++				} catch (ex) {
++					super.run(accessor, editor);
++				}
 +			}
 +		} else {
 +			super.run(accessor, editor);
@@ -374,19 +420,35 @@ index 7b6ad89..3190356 100644
 -			return;
 +			return (require('vs/../../../../packages/vscode/src/workbench') as typeof import ('vs/../../../../packages/vscode/src/workbench')).workbench.handleDrop(event, resolveTargetGroup, afterDrop, targetIndex);
 diff --git a/src/vs/workbench/browser/layout.ts b/src/vs/workbench/browser/layout.ts
-index c25c940..9f11d98 100644
+index c25c940..f2004f8 100644
 --- a/src/vs/workbench/browser/layout.ts
 +++ b/src/vs/workbench/browser/layout.ts
 @@ -12 +12 @@ import { Registry } from 'vs/platform/registry/common/platform';
 -import { isWindows, isLinux, isMacintosh } from 'vs/base/common/platform';
-+import { isWindows, isLinux, isMacintosh, isNative, isWeb } from 'vs/base/common/platform';
++import { isWindows, isLinux, isMacintosh, isNative } from 'vs/base/common/platform';
 @@ -210 +210 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 -		if ((isWindows || isLinux) && getTitleBarStyle(this.configurationService, this.environmentService) === 'custom') {
-+		if ((isWeb || isWindows || isLinux) && getTitleBarStyle(this.configurationService, this.environmentService) === 'custom') {
-@@ -535 +535 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
++		// if ((isWeb || isWindows || isLinux) && getTitleBarStyle(this.configurationService, this.environmentService) === 'custom') {
+@@ -212 +212 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+-		}
++		// }
+@@ -219 +219 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+-			if (this.state.fullscreen && (this.state.menuBar.visibility === 'toggle' || this.state.menuBar.visibility === 'default')) {
++			if ((this.state.menuBar.visibility === 'toggle' || this.state.menuBar.visibility === 'default')) {
+@@ -531 +531,5 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+-				if (getTitleBarStyle(this.configurationService, this.environmentService) === 'native') {
++				if (this.state.menuBar.visibility === 'hidden') {
++					return false;
++				} else if (this.state.menuBar.visibility === 'toggle') {
++					return this.state.menuBar.toggled;
++				} else if (getTitleBarStyle(this.configurationService, this.environmentService) === 'native') {
+@@ -535 +539 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 -				} else if (isMacintosh) {
 +				} else if (isNative && isMacintosh) {
-@@ -567 +567 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+@@ -539,2 +542,0 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+-				} else if (this.state.menuBar.visibility === 'toggle' || this.state.menuBar.visibility === 'default') {
+-					return this.state.menuBar.toggled;
+@@ -567 +569 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
 -				if (isMacintosh || this.state.menuBar.visibility === 'hidden') {
 +				if ((isNative && isMacintosh) || this.state.menuBar.visibility === 'hidden') {
 diff --git a/src/vs/workbench/browser/legacyLayout.ts b/src/vs/workbench/browser/legacyLayout.ts
@@ -498,7 +560,7 @@ index a822341..43b882a 100644
 -			if (!isMacintosh && this.currentTitlebarStyleSetting === 'custom') {
 +			if (!(isNative && isMacintosh) && this.currentTitlebarStyleSetting === 'custom') {
 diff --git a/src/vs/workbench/browser/parts/titlebar/titlebarPart.ts b/src/vs/workbench/browser/parts/titlebar/titlebarPart.ts
-index 028f375..4bfe956 100644
+index 028f375..f740471 100644
 --- a/src/vs/workbench/browser/parts/titlebar/titlebarPart.ts
 +++ b/src/vs/workbench/browser/parts/titlebar/titlebarPart.ts
 @@ -11 +11 @@ import { ITitleService, ITitleProperties } from 'vs/workbench/services/title/com
@@ -512,7 +574,10 @@ index 028f375..4bfe956 100644
 +		if (!(isNative && isMacintosh)) {
 @@ -343 +343 @@ export class TitlebarPart extends Part implements ITitleService {
 -		if (!isMacintosh) {
-+		if (!(isNative && isMacintosh)) {
++		// if (!(isNative && isMacintosh)) {
+@@ -346 +346 @@ export class TitlebarPart extends Part implements ITitleService {
+-		}
++		// }
 @@ -549 +549 @@ export class TitlebarPart extends Part implements ITitleService {
 -		if (!isMacintosh &&
 +		if (!(isNative && isMacintosh) &&
@@ -728,11 +793,14 @@ index 1f8088e..f5b0551 100644
 -			included: platform.isMacintosh
 +			included: platform.isNative && platform.isMacintosh
 diff --git a/src/vs/workbench/contrib/terminal/browser/terminal.contribution.ts b/src/vs/workbench/contrib/terminal/browser/terminal.contribution.ts
-index 24ba122..fca7faf 100644
+index 24ba122..3ab8804 100644
 --- a/src/vs/workbench/contrib/terminal/browser/terminal.contribution.ts
 +++ b/src/vs/workbench/contrib/terminal/browser/terminal.contribution.ts
 @@ -12,0 +13 @@ import * as nls from 'vs/nls';
 +import * as browser from 'vs/base/browser/browser';
+@@ -185 +186 @@ configurationRegistry.registerConfiguration({
+-			default: 'auto',
++			default: browser.isSafari ? 'dom' : 'auto',
 @@ -196 +197 @@ configurationRegistry.registerConfiguration({
 -			default: platform.isMacintosh ? 'selectWord' : platform.isWindows ? 'copyPaste' : 'default',
 +			default: browser.isMacintosh ? 'selectWord' : browser.isWindows ? 'copyPaste' : 'default',
@@ -861,13 +929,19 @@ index 48ef482..dc47f81 100644
 -			placeHolder: isMacintosh ? nls.localize('openRecentPlaceHolderMac', "Select to open (hold Cmd-key to open in new window)") : nls.localize('openRecentPlaceHolder', "Select to open (hold Ctrl-key to open in new window)"),
 +			placeHolder: browser.isMacintosh ? nls.localize('openRecentPlaceHolderMac', "Select to open (hold Cmd-key to open in new window)") : nls.localize('openRecentPlaceHolder', "Select to open (hold Ctrl-key to open in new window)"),
 diff --git a/src/vs/workbench/electron-browser/main.contribution.ts b/src/vs/workbench/electron-browser/main.contribution.ts
-index 71bc992..97cbb71 100644
+index 71bc992..a76dad4 100644
 --- a/src/vs/workbench/electron-browser/main.contribution.ts
 +++ b/src/vs/workbench/electron-browser/main.contribution.ts
 @@ -13 +13,2 @@ import { KeyMod, KeyChord, KeyCode } from 'vs/base/common/keyCodes';
 -import { isWindows, isLinux, isMacintosh } from 'vs/base/common/platform';
 +import { isNative, isWeb } from 'vs/base/common/platform';
 +import { isMacintosh, isWindows, isLinux } from 'vs/base/browser/browser';
+@@ -37 +38 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
+-		if (isMacintosh) {
++		if (isNative && isMacintosh) {
+@@ -225 +226 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
+-	if (isMacintosh) {
++	if (isNative && isMacintosh) {
 @@ -306 +307 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
 -		when: IsMacContext.toNegated()
 +		// when: IsMacContext.toNegated()
@@ -883,8 +957,10 @@ index 71bc992..97cbb71 100644
 @@ -633 +634 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
 -				'included': isWindows || isLinux
 +				'included': isWeb || isWindows || isLinux
-@@ -650 +651 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
+@@ -649,2 +650,2 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
+-				'enum': ['native', 'custom'],
 -				'default': isLinux ? 'native' : 'custom',
++				'enum': ['custom'],
 +				'default': isNative && isLinux ? 'native' : 'custom',
 @@ -659 +660 @@ import { LogStorageAction } from 'vs/platform/storage/node/storageService';
 -				'included': isMacintosh && parseFloat(os.release()) >= 16 // Minimum: macOS Sierra (10.12.x = darwin 16.x)
