@@ -1,4 +1,4 @@
-FROM node:8.15.0
+FROM node:10.15.1
 
 ENV ELECTRON_MIRROR "https://npm.taobao.org/mirrors/electron/"
 
@@ -28,11 +28,11 @@ COPY . .
 # directly which should be fast as it is slow because it populates its own cache every time.
 RUN yarn && NODE_ENV=production yarn task build:server:binary
 
-# We deploy with ubuntu so that devs have a familiar environemnt.
+# We deploy with ubuntu so that devs have a familiar environment.
 FROM ubuntu:18.04
 
 RUN apt-get update \
- && apt-get install -y openssl net-tools git locales sudo dumb-init \
+ && apt-get install -y openssl net-tools git locales sudo dumb-init vim curl wget \
  && apt-get clean
 
 RUN locale-gen en_US.UTF-8
@@ -50,6 +50,10 @@ USER coder
 RUN mkdir -p /home/coder/project
 
 WORKDIR /home/coder/project
+
+# This assures we have a volume mounted even if the user forgot to do bind mount.
+# XXX: Workaround for GH-459 and for OpenShift compatibility.
+VOLUME [ "/home/coder/project" ]
 
 COPY --from=0 /src/packages/server/cli-linux-x64 /usr/local/bin/code-server
 
