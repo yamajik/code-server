@@ -186,6 +186,10 @@ class Clipboard {
 	public writeText(value: string): Promise<void> {
 		return clipboard.writeText(value);
 	}
+
+	public readText(): Promise<string> {
+		return clipboard.readText();
+	}
 }
 
 class Shell {
