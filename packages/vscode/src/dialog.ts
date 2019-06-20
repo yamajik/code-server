@@ -52,7 +52,15 @@ export type DialogOptions = OpenDialogOptions | SaveDialogOptions;
 
 export const showOpenDialog = (options: OpenDialogOptions): Promise<string> => {
 	return new Promise<string>((resolve, reject): void => {
-		const dialog = new Dialog(DialogType.Open, options);
+		// Make the default to show hidden files and directories since there is no
+		// other way to make them visible in the dialogs currently.
+		const dialog = new Dialog(DialogType.Open, typeof options.properties.showHiddenFiles === "undefined" ? {
+			...options,
+			properties: {
+				...options.properties,
+				showHiddenFiles: true,
+			},
+		} : options);
 		dialog.onSelect((e) => {
 			dialog.dispose();
 			resolve(e);
@@ -307,7 +315,6 @@ class Dialog {
 		}
 		buttonsNode.appendChild(confirmBtn);
 		this.root.appendChild(buttonsNode);
-		this.entryList.layout();
 
 		this.path = options.defaultPath || "/";
 	}
@@ -383,6 +390,8 @@ class Dialog {
 				return true;
 			});
 
+			this.entryList.layout();
+
 			this.entryList.setChildren(null, items.map((i: DialogEntry): ITreeElement<DialogEntry> => ({ element: i })));
 			this.entryList.domFocus();
 			this.entryList.setFocus([null]);
@@ -404,7 +413,7 @@ class Dialog {
 	 */
 	private async list(directory: string): Promise<ReadonlyArray<DialogEntry>> {
 		const paths = (await util.promisify(fs.readdir)(directory)).sort();
-		const stats = await Promise.all(paths.map(p => util.promisify(fs.stat)(path.join(directory, p))));
+		const stats = await Promise.all(paths.map(p => util.promisify(fs.lstat)(path.join(directory, p))));
 
 		return stats.map((stat, index): DialogEntry => ({
 			fullPath: path.join(directory, paths[index]),
@@ -480,7 +489,7 @@ class DialogEntryRenderer implements ITreeRenderer<DialogEntry, string, DialogEn
 			start: 0,
 			end: node.filterData.length,
 		}] : []);
-		templateData.size.innerText = node.element.size.toString();
+		templateData.size.innerText = !node.element.isDirectory ? this.humanReadableSize(node.element.size) : "";
 		templateData.lastModified.innerText = node.element.lastModified;
 
 		// We know this exists because we created the template.
@@ -497,5 +506,16 @@ class DialogEntryRenderer implements ITreeRenderer<DialogEntry, string, DialogEn
 	 */
 	public disposeTemplate(_templateData: DialogEntryData): void {
 		// throw new Error("Method not implemented.");
+	}
+
+	/**
+	 * Given a positive size in bytes, return a string that is more readable for
+	 * humans.
+	 */
+	private humanReadableSize(bytes: number): string {
+		const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+		const i = Math.min(Math.floor(bytes && Math.log(bytes) / Math.log(1000)), units.length - 1);
+
+		return (bytes / Math.pow(1000, i)).toFixed(2) + " " + units[i];
 	}
 }

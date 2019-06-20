@@ -1,35 +1,41 @@
 import * as cp from "child_process";
 import { ServerProxy } from "../../common/proxy";
-import { preserveEnv } from "../../common/util";
+import { withEnv } from "../../common/util";
 import { WritableProxy, ReadableProxy } from "./stream";
 
 // tslint:disable completed-docs
 
 export type ForkProvider = (modulePath: string, args?: string[], options?: cp.ForkOptions) => cp.ChildProcess;
 
-export class ChildProcessProxy implements ServerProxy {
-	public constructor(private readonly process: cp.ChildProcess) {}
+export class ChildProcessProxy extends ServerProxy<cp.ChildProcess> {
+	public constructor(instance: cp.ChildProcess) {
+		super({
+			bindEvents: ["close", "disconnect", "error", "exit", "message"],
+			doneEvents: ["close"],
+			instance,
+		});
+	}
 
 	public async kill(signal?: string): Promise<void> {
-		this.process.kill(signal);
+		this.instance.kill(signal);
 	}
 
 	public async disconnect(): Promise<void> {
-		this.process.disconnect();
+		this.instance.disconnect();
 	}
 
 	public async ref(): Promise<void> {
-		this.process.ref();
+		this.instance.ref();
 	}
 
 	public async unref(): Promise<void> {
-		this.process.unref();
+		this.instance.unref();
 	}
 
 	// tslint:disable-next-line no-any
 	public async send(message: any): Promise<void> {
 		return new Promise((resolve, reject): void => {
-			this.process.send(message, (error) => {
+			this.instance.send(message, (error) => {
 				if (error) {
 					reject(error);
 				} else {
@@ -40,25 +46,13 @@ export class ChildProcessProxy implements ServerProxy {
 	}
 
 	public async getPid(): Promise<number> {
-		return this.process.pid;
-	}
-
-	public async onDone(cb: () => void): Promise<void> {
-		this.process.on("close", cb);
+		return this.instance.pid;
 	}
 
 	public async dispose(): Promise<void> {
-		this.process.kill();
-		setTimeout(() => this.process.kill("SIGKILL"), 5000); // Double tap.
-	}
-
-	// tslint:disable-next-line no-any
-	public async onEvent(cb: (event: string, ...args: any[]) => void): Promise<void> {
-		this.process.on("close", (code, signal) => cb("close", code, signal));
-		this.process.on("disconnect", () => cb("disconnect"));
-		this.process.on("error", (error) => cb("error", error));
-		this.process.on("exit", (exitCode, signal) => cb("exit", exitCode, signal));
-		this.process.on("message", (message) => cb("message", message));
+		this.instance.kill();
+		setTimeout(() => this.instance.kill("SIGKILL"), 5000); // Double tap.
+		await super.dispose();
 	}
 }
 
@@ -77,29 +71,25 @@ export class ChildProcessModuleProxy {
 		options?: { encoding?: string | null } & cp.ExecOptions | null,
 		callback?: ((error: cp.ExecException | null, stdin: string | Buffer, stdout: string | Buffer) => void),
 	): Promise<ChildProcessProxies> {
-		preserveEnv(options);
-
-		return this.returnProxies(cp.exec(command, options, callback));
+		return this.returnProxies(cp.exec(command, options && withEnv(options), callback));
 	}
 
 	public async fork(modulePath: string, args?: string[], options?: cp.ForkOptions): Promise<ChildProcessProxies> {
-		preserveEnv(options);
-
-		return this.returnProxies((this.forkProvider || cp.fork)(modulePath, args, options));
+		return this.returnProxies((this.forkProvider || cp.fork)(modulePath, args, withEnv(options)));
 	}
 
 	public async spawn(command: string, args?: string[], options?: cp.SpawnOptions): Promise<ChildProcessProxies> {
-		preserveEnv(options);
-
-		return this.returnProxies(cp.spawn(command, args, options));
+		return this.returnProxies(cp.spawn(command, args, withEnv(options)));
 	}
 
 	private returnProxies(process: cp.ChildProcess): ChildProcessProxies {
 		return {
 			childProcess: new ChildProcessProxy(process),
 			stdin: process.stdin && new WritableProxy(process.stdin),
-			stdout: process.stdout && new ReadableProxy(process.stdout),
-			stderr: process.stderr && new ReadableProxy(process.stderr),
+			// Child processes streams appear to immediately flow so we need to bind
+			// to the data event right away.
+			stdout: process.stdout && new ReadableProxy(process.stdout, ["data"]),
+			stderr: process.stderr && new ReadableProxy(process.stderr, ["data"]),
 		};
 	}
 }

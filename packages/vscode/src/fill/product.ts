@@ -11,7 +11,7 @@ class Product implements IProductConfiguration {
 	public introductoryVideosUrl = "https://code.visualstudio.com/docs/getstarted/introvideos";
 	public tipsAndTricksUrl = "https://code.visualstudio.com/docs/getstarted/tips-and-tricks";
 	public twitterUrl = "https://twitter.com/code";
-	public licenseUrl = "https://github.com/codercom/code-server/blob/master/LICENSE";
+	public licenseUrl = "https://github.com/cdr/code-server/blob/master/LICENSE";
 	public aiConfig = process.env.DISABLE_TELEMETRY ? undefined! : {
 		// Only needed so vscode can see that content exists for this value.
 		// We override the application insights module.
@@ -28,12 +28,17 @@ class Product implements IProductConfiguration {
 		return this._dataFolderName;
 	}
 
-	public extensionsGallery = {
-		serviceUrl: global && global.process && global.process.env.SERVICE_URL
-			|| process.env.SERVICE_URL
-			|| "https://v1.extapi.coder.com",
-		// tslint:disable-next-line:no-any
-	} as any;
+	// tslint:disable-next-line:no-any
+	public extensionsGallery: any = {
+		get serviceUrl(): string {
+			return process.env.SERVICE_URL || "https://v1.extapi.coder.com";
+		},
+
+		get itemUrl(): string {
+			return process.env.ITEM_URL || "";
+		},
+
+	};
 
 	public extensionExecutionEnvironments = {
 		"wayou.vscode-todo-highlight": "worker",
