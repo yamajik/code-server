@@ -1,5 +1,10 @@
 // tslint:disable no-any
 
+import { ITerminalService } from "vs/workbench/contrib/terminal/common/terminal";
+import { IWorkbenchActionRegistry } from 'vs/workbench/common/actions';
+import { Action } from 'vs/base/common/actions';
+import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
+
 export interface EvalHelper { }
 interface ActiveEvalEmitter {
 	removeAllListeners(event?: string): void;
@@ -144,11 +149,15 @@ declare namespace ide {
 	export const client: {};
 
 	export const workbench: {
+		readonly action: Action,
+		readonly syncActionDescriptor: SyncActionDescriptor,
 		readonly statusbarService: IStatusbarService;
+		readonly actionsRegistry: IWorkbenchActionRegistry;
 		readonly notificationService: INotificationService;
 		readonly storageService: IStorageService;
 		readonly menuRegistry: IMenuRegistry;
 		readonly commandRegistry: ICommandRegistry;
+		readonly terminalService: ITerminalService;
 
 		onFileCreate(cb: (path: string) => void): void;
 		onFileMove(cb: (path: string, target: string) => void): void;

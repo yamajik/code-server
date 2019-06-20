@@ -7,6 +7,7 @@ import { ParsedArgs } from "vs/platform/environment/common/environment";
 import { Emitter } from "@coder/events/src";
 import { retry } from "@coder/ide/src/retry";
 import { logger, field, Level } from "@coder/logger";
+import { withEnv } from "@coder/protocol";
 
 export enum SharedProcessState {
 	Stopped,
@@ -38,6 +39,8 @@ export class SharedProcess {
 		private readonly userDataDir: string,
 		private readonly extensionsDir: string,
 		private readonly builtInExtensionsDir: string,
+		private readonly extraExtensionDirs: string[],
+		private readonly extraBuiltinExtensionDirs: string[],
 	) {
 		this.retry.run();
 	}
@@ -88,13 +91,10 @@ export class SharedProcess {
 			this.activeProcess.kill();
 		}
 
-		const activeProcess = forkModule("vs/code/electron-browser/sharedProcess/sharedProcessMain", [], {
-			env: {
-				VSCODE_ALLOW_IO: "true",
-				VSCODE_LOGS: process.env.VSCODE_LOGS,
-				DISABLE_TELEMETRY: process.env.DISABLE_TELEMETRY,
-			},
-		}, this.userDataDir);
+		const activeProcess = forkModule(
+			"vs/code/electron-browser/sharedProcess/sharedProcessMain", [],
+			withEnv({ env: { VSCODE_ALLOW_IO: "true" } }), this.userDataDir,
+		);
 		this.activeProcess = activeProcess;
 
 		await new Promise((resolve, reject): void => {
@@ -136,6 +136,8 @@ export class SharedProcess {
 						"builtin-extensions-dir": this.builtInExtensionsDir,
 						"user-data-dir": this.userDataDir,
 						"extensions-dir": this.extensionsDir,
+						"extra-extension-dirs": this.extraExtensionDirs,
+						"extra-builtin-extension-dirs": this.extraBuiltinExtensionDirs,
 					},
 					logLevel: this.logger.level,
 					sharedIPCHandle: this.socketPath,
