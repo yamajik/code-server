@@ -28,7 +28,7 @@ commander.version(process.env.VERSION || "development")
 	.option("-e, --extensions-dir <dir>", "Override the main default path for user extensions.")
 	.option("--extra-extensions-dir [dir]", "Path to an extra user extension directory (repeatable).", collect, [])
 	.option("--extra-builtin-extensions-dir [dir]", "Path to an extra built-in extension directory (repeatable).", collect, [])
-	.option("-d --user-data-dir <dir>", "Specifies the directory that user data is kept in, useful when running as root.")
+	.option("-d, --user-data-dir <dir>", "Specifies the directory that user data is kept in, useful when running as root.")
 	.option("--data-dir <value>", "DEPRECATED: Use '--user-data-dir' instead. Customize where user-data is stored.")
 	.option("-h, --host <value>", "Customize the hostname.", "0.0.0.0")
 	.option("-o, --open", "Open in the browser on startup.", false)
@@ -38,6 +38,7 @@ commander.version(process.env.VERSION || "development")
 	.option("-P, --password <value>", "DEPRECATED: Use the PASSWORD environment variable instead. Specify a password for authentication.")
 	.option("--disable-telemetry", "Disables ALL telemetry.", false)
 	.option("--socket <value>", "Listen on a UNIX socket. Host and port will be ignored when set.")
+	.option("--trust-proxy", "Trust the X-Forwarded-For header, useful when using a reverse proxy.", false)
 	.option("--install-extension <value>", "Install an extension by its ID.")
 	.option("--bootstrap-fork <name>", "Used for development. Never set.")
 	.option("--extra-args <args>", "Used for development. Never set.")
@@ -74,6 +75,7 @@ const bold = (text: string | number): string | number => {
 		readonly cert?: string;
 		readonly certKey?: string;
 		readonly socket?: string;
+		readonly trustProxy?: boolean;
 
 		readonly installExtension?: string;
 
@@ -273,6 +275,7 @@ const bold = (text: string | number): string | number => {
 			},
 		},
 		password,
+		trustProxy: options.trustProxy,
 		httpsOptions: hasCustomHttps ? {
 			key: certKeyData,
 			cert: certData,
