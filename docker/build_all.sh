@@ -2,6 +2,6 @@
 
 set -e
 
-VERSION=0.1.7
+VERSION=0.1.8
 
 . docker/build.sh ${VERSION} $@
