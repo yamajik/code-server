@@ -1,4 +1,7 @@
-FROM node:10.15.1
+FROM node:10.16.0
+ARG codeServerVersion=docker
+ARG vscodeVersion
+ARG githubToken
 
 ENV ELECTRON_MIRROR "https://npm.taobao.org/mirrors/electron/"
 
@@ -24,9 +27,12 @@ WORKDIR /src
 
 COPY . .
 
-# In the future, we can use https://github.com/yarnpkg/rfcs/pull/53 to make yarn use the node_modules
-# directly which should be fast as it is slow because it populates its own cache every time.
-RUN yarn && NODE_ENV=production yarn task build:server:binary
+RUN yarn \
+	&& MINIFY=true GITHUB_TOKEN="${githubToken}" yarn build "${vscodeVersion}" "${codeServerVersion}" \
+	&& yarn binary "${vscodeVersion}" "${codeServerVersion}" \
+	&& mv "/src/binaries/code-server${codeServerVersion}-vsc${vscodeVersion}-linux-x86_64" /src/binaries/code-server \
+	&& rm -r /src/build \
+	&& rm -r /src/source
 
 # We deploy with ubuntu so that devs have a familiar environment.
 FROM ubuntu:18.04
@@ -37,26 +43,28 @@ RUN apt-get update \
 
 RUN locale-gen en_US.UTF-8
 
-# We unfortunately cannot use update-locale because docker will not use the env variables
+# We cannot use update-locale because docker will not use the env variables
 # configured in /etc/default/locale so we need to set it manually.
-ENV LC_ALL=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8 \
+    SHELL=/bin/bash
 
 RUN adduser --gecos '' --disabled-password coder \
  && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
 
 USER coder
 
-# We create first instead of just using WORKDIR as when WORKDIR creates, the user is root.
+# We create first instead of just using WORKDIR as when WORKDIR creates, the
+# user is root.
 RUN mkdir -p /home/coder/project
 
 WORKDIR /home/coder/project
 
-# This assures we have a volume mounted even if the user forgot to do bind mount.
-# XXX: Workaround for GH-459 and for OpenShift compatibility.
+# This ensures we have a volume mounted even if the user forgot to do bind
+# mount. So that they do not lose their data if they delete the container.
 VOLUME [ "/home/coder/project" ]
 
 COPY --from=0 /src/packages/server/cli-linux-x64 /usr/local/bin/code-server
 
-EXPOSE 8443
+EXPOSE 8080
 
-ENTRYPOINT ["dumb-init", "code-server"]
+ENTRYPOINT ["dumb-init", "code-server", "--host", "0.0.0.0"]
