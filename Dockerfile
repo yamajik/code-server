@@ -33,7 +33,8 @@ RUN apt-get update && apt-get install -y \
 	dumb-init \
 	vim \
 	curl \
-	wget
+	wget \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN locale-gen en_US.UTF-8
 # We cannot use update-locale because docker will not use the env variables
@@ -48,6 +49,8 @@ USER coder
 # We create first instead of just using WORKDIR as when WORKDIR creates, the
 # user is root.
 RUN mkdir -p /home/coder/project
+# To avoid EACCES issues on f.ex Crostini (ChromeOS)
+RUN mkdir -p /home/coder/.local/share/code-server
 
 WORKDIR /home/coder/project
 
