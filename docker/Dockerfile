@@ -52,10 +52,11 @@ RUN adduser --gecos '' --disabled-password coder \
  && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
 
 USER coder
-
 # We create first instead of just using WORKDIR as when WORKDIR creates, the
 # user is root.
 RUN mkdir -p /home/coder/project
+# To avoid EACCES issues on f.ex Crostini (ChromeOS)
+RUN mkdir -p /home/coder/.local/share/code-server
 
 WORKDIR /home/coder/project
 
@@ -63,7 +64,7 @@ WORKDIR /home/coder/project
 # mount. So that they do not lose their data if they delete the container.
 VOLUME [ "/home/coder/project" ]
 
-COPY --from=0 /src/packages/server/cli-linux-x64 /usr/local/bin/code-server
+COPY --from=0 /src/binaries/code-server /usr/local/bin/code-server
 
 EXPOSE 8080
 
