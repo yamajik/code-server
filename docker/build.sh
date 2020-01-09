@@ -2,7 +2,7 @@
 
 set -xe
 
-IMAGE=registry-vpc.cn-shanghai.aliyuncs.com/shuzhi/code_server
+IMAGE=registry-vpc.cn-shanghai.aliyuncs.com/shuzhi-amd64/code_server
 
 docker build -t ${IMAGE}:$1 . -f ./docker/Dockerfile ${@:2}
 
