@@ -1,6 +1,6 @@
 FROM node:10.16.0
 ARG codeServerVersion=docker
-ARG vscodeVersion="release/1.41"
+ARG vscodeVersion="release/1.39.2"
 ARG githubToken
 
 ENV ELECTRON_MIRROR "https://npm.taobao.org/mirrors/electron/"
